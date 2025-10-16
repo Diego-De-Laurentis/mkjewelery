@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { THEMES } from '../utils/products.js'
 
@@ -16,7 +17,7 @@ export default function About({ themeKey }) {
             </div>
           </div>
           <div className={`rounded-3xl overflow-hidden ring-2 ${theme.ring} shadow-md`}>
-            <img className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-[1.03]" src="https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=1600&auto=format&fit=crop" alt="workbench" />
+            <img className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-[1.03]" src="/images/about.svg" alt="workbench" />
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { THEMES } from '../utils/products.js'
 
@@ -17,7 +18,7 @@ export default function Hero({ themeKey }) {
           </div>
           <div className="relative">
             <div className={`aspect-[4/3] w-full rounded-3xl overflow-hidden ring-2 ${theme.ring} shadow-md`}>
-              <img className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-[1.03]" src="https://images.unsplash.com/photo-1520962918287-7448c2878f65?q=80&w=1600&auto=format&fit=crop" alt="jewelry hero" />
+              <img className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-[1.03]" src="/images/hero.svg" alt="jewelry hero" />
             </div>
           </div>
         </div>

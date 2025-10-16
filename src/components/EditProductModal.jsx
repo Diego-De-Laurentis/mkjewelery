@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 
 export default function EditProductModal({ open, onClose, onSave, product }) {
@@ -18,7 +19,7 @@ export default function EditProductModal({ open, onClose, onSave, product }) {
           <input value={form.name} onChange={e=>update('name', e.target.value)} required placeholder="Name" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
           <input value={form.price} onChange={e=>update('price', e.target.value)} required type="number" min="0" step="0.01" placeholder="Price (EUR)" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
           <input value={form.category} onChange={e=>update('category', e.target.value)} placeholder="Category" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
-          <input value={form.image} onChange={e=>update('image', e.target.value)} placeholder="Image URL" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
+          <input value={form.image} onChange={e=>update('image', e.target.value)} placeholder="Image path or data URL" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
           <textarea value={form.description} onChange={e=>update('description', e.target.value)} placeholder="Description" rows={3} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
           <button type="submit" className="mt-2 sm:mt-0 sm:col-span-2 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 transition-colors">Save changes</button>
         </form>

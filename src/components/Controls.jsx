@@ -1,3 +1,4 @@
+
 import React from 'react'
 
 export default function Controls({ categories, category, setCategory, query, setQuery, onAddProduct }) {
@@ -15,7 +16,7 @@ export default function Controls({ categories, category, setCategory, query, set
             <button onClick={onAddProduct} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white text-sm hover:bg-neutral-50 transition-colors">+ Add product</button>
           </div>
         </div>
-        <div className="mt-2 text-xs text-neutral-500">Products save automatically in your browser.</div>
+        <div className="mt-2 text-xs text-neutral-500">Product images are served from /uploads or /images.</div>
       </div>
     </section>
   )

@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { formatCurrencyEUR } from '../utils/format.js'
 import { THEMES } from '../utils/products.js'

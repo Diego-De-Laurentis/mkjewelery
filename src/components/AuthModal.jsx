@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react'
 import { useAuth } from '../auth/AuthContext.jsx'
 
@@ -25,7 +26,8 @@ export default function AuthModal({ open, onClose }) {
           <div className="font-medium">{mode === 'login' ? 'Sign in' : 'Create account'}</div>
           <button onClick={onClose} className="px-2 py-1 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors">Close</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 grid gap-3">\n          {mode === 'login' && (<div className="text-xs text-neutral-600">Demo admin: <span className="font-mono">admin@mkjewel.example</span> / <span className="font-mono">admin123</span></div>)}
+        <form onSubmit={handleSubmit} className="p-4 grid gap-3">
+          {mode === 'login' && (<div className="text-xs text-neutral-600">Demo admin: <span className="font-mono">admin@mkjewel.example</span> / <span className="font-mono">admin123</span></div>)}
           {error && <div className="text-sm text-red-600">{error}</div>}
           <input type="email" required placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
           <input type="password" required placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />

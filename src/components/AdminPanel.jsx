@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react'
 import { useAuth } from '../auth/AuthContext.jsx'
 
@@ -7,7 +8,7 @@ export default function AdminPanel() {
   return (
     <section className="border-t border-neutral-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex items-center justify_between">
+        <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Admin · Users</h2>
           <div className="text-xs text-neutral-600">Only admins see this panel</div>
         </div>
@@ -31,7 +32,7 @@ export default function AdminPanel() {
                     </select>
                   </td>
                   <td className="p-2 space-x-2">
-                    <input placeholder="new password" value={tempPass[u.id]||''} onChange={e=>setTempPass(prev=>({...prev,[u.id]:e.target.value}))} className="px-2 py-1 rounded border border-neutral-300 bg_white" />
+                    <input placeholder="new password" value={tempPass[u.id]||''} onChange={e=>setTempPass(prev=>({...prev,[u.id]:e.target.value}))} className="px-2 py-1 rounded border border-neutral-300 bg-white" />
                     <button onClick={()=>{ resetPassword(u.id, tempPass[u.id]||'changeme'); }} className="px-2 py-1 rounded border border-neutral-300 bg-white hover:bg-neutral-50">Reset</button>
                     <button onClick={()=>{ if (u.id!==currentUser?.id) deleteUser(u.id) }} className="px-2 py-1 rounded border border-neutral-300 bg-white hover:bg-neutral-50" disabled={u.id===currentUser?.id}>Delete</button>
                   </td>

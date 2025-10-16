@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react'
 
 export default function ShareModal({ url, onClose }) {
@@ -18,7 +19,7 @@ export default function ShareModal({ url, onClose }) {
             <button onClick={() => { if (inputRef.current) { inputRef.current.focus(); inputRef.current.select(); } }} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 transition-colors">Select</button>
             <a href={url} target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-xl text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 transition-colors">Open link</a>
           </div>
-          <p className="text-xs text-neutral-500">Press Ctrl/Cmd+C after selecting to copy. Programmatic clipboard may be disabled.</p>
+          <p className="text-xs text-neutral-500">Press Ctrl/Cmd+C after selecting to copy.</p>
         </div>
       </div>
     </div>

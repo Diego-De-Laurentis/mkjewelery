@@ -1,3 +1,4 @@
+
 import React from 'react'
 
 export default function AddProductModal({ open, onClose, onSubmit, backend }) {
@@ -14,10 +15,10 @@ export default function AddProductModal({ open, onClose, onSubmit, backend }) {
           <input name="name" required placeholder="Name" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
           <input name="price" required type="number" min="0" step="0.01" placeholder="Price (EUR)" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
           <input name="category" placeholder="Category" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
-          <input name="image" placeholder="Image URL" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
+          <input name="imageFile" type="file" accept="image/*" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
           <textarea name="description" placeholder="Description" rows={3} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
           <button type="submit" className="mt-2 sm:mt-0 sm:col-span-2 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 transition-colors">Save</button>
-          <p className="text-xs text-neutral-500 sm:col-span-2">Data saves locally{backend ? ' and via API' : ''}. Replace with CMS or your API.</p>
+          <p className="text-xs text-neutral-500 sm:col-span-2">Images upload to /uploads when API is available. Without API, the image is embedded as data URL.</p>
         </form>
       </div>
     </div>

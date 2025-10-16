@@ -1,3 +1,4 @@
+
 import React from 'react'
 
 export default function Care() {
@@ -8,7 +9,7 @@ export default function Care() {
   ]
   return (
     <section id="care" className="border-t border-neutral-200">
-      <div className="max-w-7xl mx_auto px-4 sm:px-6 lg:px-8 py-14">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Care & Warranty</h2>
         <div className="mt-6 grid md:grid-cols-3 gap-6">
           {cards.map((x,i) => (

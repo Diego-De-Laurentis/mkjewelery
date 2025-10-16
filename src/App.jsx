@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect } from 'react'
 import Header from './components/Header.jsx'
 import Hero from './components/Hero.jsx'
@@ -63,20 +64,24 @@ export default function App() {
     const name = String(form.get('name')).trim()
     const price = Number(form.get('price'))
     const category = String(form.get('category')).trim() || 'Uncategorized'
-    const image = String(form.get('image')).trim()
+    const imageFile = form.get('imageFile')
     const description = String(form.get('description')).trim()
+    let image = ''
+    if (imageFile && imageFile.size) {
+      try {
+        if (backend) {
+          const up = await API.uploadImage(imageFile); image = up.path
+        } else {
+          image = await new Promise((resolve, reject)=>{ const r=new FileReader(); r.onload=()=>resolve(String(r.result)); r.onerror=reject; r.readAsDataURL(imageFile); })
+        }
+      } catch {}
+    }
     if (!name || !price) return
     const draft = { id: `p_${Date.now()}`, name, price, category, image, description }
     try {
-      if (backend) {
-        const saved = await API.createProduct(draft)
-        setProducts(ps => [saved, ...ps])
-      } else {
-        setProducts(ps => [draft, ...ps])
-      }
-    } catch {
-      setProducts(ps => [draft, ...ps])
-    }
+      if (backend) { const saved = await API.createProduct(draft); setProducts(ps => [saved, ...ps]) }
+      else { setProducts(ps => [draft, ...ps]) }
+    } catch { setProducts(ps => [draft, ...ps]) }
     e.target.reset(); setShowAdd(false)
   }
 
@@ -89,8 +94,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
       <div className="pointer-events-none fixed inset-0 -z-10 opacity-50">
-        <div className="absolute -top-40 -left-40 h-[32rem] w-[32rem] rounded-full blur-3xl bg-gradient_to-tr from-amber-100 to-yellow-50" />
-        <div className="absolute -bottom-40 -right-40 h-[28rem] w-[28rem] rounded-full blur-3xl bg-gradient_to-tr from-sky-100 to-cyan-50" />
+        <div className="absolute -top-40 -left-40 h-[32rem] w-[32rem] rounded-full blur-3xl bg-gradient-to-tr from-amber-100 to-yellow-50" />
+        <div className="absolute -bottom-40 -right-40 h-[28rem] w-[28rem] rounded-full blur-3xl bg-gradient-to-tr from-sky-100 to-cyan-50" />
       </div>
 
       {toast && (

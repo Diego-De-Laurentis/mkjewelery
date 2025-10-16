@@ -1,3 +1,4 @@
+
 export const API = {
   async listProducts() {
     const res = await fetch('/api/products', { headers: { Accept: 'application/json' } })
@@ -9,4 +10,10 @@ export const API = {
     if (!res.ok) throw new Error('create-failed')
     return res.json()
   },
+  async uploadImage(file) {
+    const fd = new FormData(); fd.append('image', file)
+    const res = await fetch('/api/upload', { method: 'POST', body: fd })
+    if (!res.ok) throw new Error('upload-failed')
+    return res.json()
+  }
 }
