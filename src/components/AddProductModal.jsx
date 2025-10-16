@@ -1,24 +1,35 @@
+// src/components/AddProductModal.jsx
+import { createProduct } from '../utils/api.db'
 
-import React from 'react'
-
-export default function AddProductModal({ open, onClose, onSubmit, backend }) {
+export default function AddProductModal({ open=true, onClose=()=>{}, onCreated=()=>{} }){
   if (!open) return null
+  async function onSubmit(e){
+    e.preventDefault()
+    const p = {
+      sku: e.target.sku.value.trim(),
+      name: e.target.name.value.trim(),
+      description: e.target.description.value.trim(),
+      price_cents: Math.round(Number(e.target.price.value) * 100) || 0,
+      image_url: e.target.image_url.value.trim()
+    }
+    await createProduct(p)
+    onCreated()
+    onClose()
+  }
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(42rem,95vw)] rounded-2xl border border-neutral-200 bg-white shadow-xl">
-        <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-          <div className="font-medium">Add Product</div>
-          <button onClick={onClose} className="px-2 py-1 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors">Close</button>
-        </div>
-        <form onSubmit={onSubmit} className="p-4 grid sm:grid-cols-2 gap-3">
-          <input name="name" required placeholder="Name" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
-          <input name="price" required type="number" min="0" step="0.01" placeholder="Price (EUR)" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
-          <input name="category" placeholder="Category" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
-          <input name="imageFile" type="file" accept="image/*" className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
-          <textarea name="description" placeholder="Description" rows={3} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow sm:col-span-2" />
-          <button type="submit" className="mt-2 sm:mt-0 sm:col-span-2 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 transition-colors">Save</button>
-          <p className="text-xs text-neutral-500 sm:col-span-2">Images upload to /uploads when API is available. Without API, the image is embedded as data URL.</p>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl p-6 space-y-3">
+        <h2 className="text-lg font-semibold">Add Product</h2>
+        <form onSubmit={onSubmit} className="space-y-3">
+          <input name="sku" placeholder="SKU" className="w-full border rounded px-3 py-2" required />
+          <input name="name" placeholder="Name" className="w-full border rounded px-3 py-2" required />
+          <input name="image_url" placeholder="Image URL" className="w-full border rounded px-3 py-2" />
+          <input name="price" type="number" step="0.01" placeholder="Price €" className="w-full border rounded px-3 py-2" required />
+          <textarea name="description" placeholder="Description" className="w-full border rounded px-3 py-2" />
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={onClose} className="px-3 py-2 rounded border">Cancel</button>
+            <button type="submit" className="px-3 py-2 rounded bg-black text-white">Create</button>
+          </div>
         </form>
       </div>
     </div>
