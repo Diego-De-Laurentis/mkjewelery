@@ -1,47 +1,80 @@
+// src/components/AdminPanel.jsx
+import { useEffect, useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
+import { adminListUsers, adminSetRole, adminDeleteUser, adminResetPassword, getProducts } from '../utils/api.db'
+import EditProductModal from './EditProductModal'
 
-import React, { useState } from 'react'
-import { useAuth } from '../auth/AuthContext.jsx'
+export default function AdminPanel(){
+  const { currentUser } = useAuth()
+  const isAdmin = currentUser?.role === 'admin'
+  const [users, setUsers] = useState([])
+  const [products, setProducts] = useState([])
+  const [edit, setEdit] = useState(null)
 
-export default function AdminPanel() {
-  const { users, currentUser, setUserRole, deleteUser, resetPassword } = useAuth()
-  const [tempPass, setTempPass] = useState({})
+  async function load(){
+    const [u, p] = await Promise.all([adminListUsers(), getProducts()])
+    setUsers(u || [])
+    setProducts(p || [])
+  }
+  useEffect(()=>{ if(isAdmin) load() },[isAdmin])
+
+  if (!isAdmin) return null
+
   return (
-    <section className="border-t border-neutral-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Admin · Users</h2>
-          <div className="text-xs text-neutral-600">Only admins see this panel</div>
-        </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm border border-neutral-200 rounded-xl overflow-hidden">
-            <thead className="bg-neutral-100">
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-8">
+      <h1 className="text-2xl font-semibold">Admin</h1>
+
+      {/* Users */}
+      <section>
+        <h2 className="text-xl font-semibold mb-3">Users</h2>
+        <div className="overflow-auto border rounded-xl">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="text-left p-2 border-b">Email</th>
-                <th className="text-left p-2 border-b">Role</th>
-                <th className="text-left p-2 border-b">Actions</th>
+                <th className="text-left p-2">Email</th>
+                <th className="text-left p-2">Role</th>
+                <th className="text-left p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map(u => (
-                <tr key={u.id} className="border-b last:border-b-0">
-                  <td className="p-2">{u.email}{u.id===currentUser?.id && <span className="ml-2 text-xs px-2 py-0.5 border rounded-full">you</span>}</td>
+              {users.map(u=>(
+                <tr key={u.id} className="border-t">
+                  <td className="p-2">{u.email}</td>
                   <td className="p-2">
-                    <select value={u.role} onChange={e=>setUserRole(u.id, e.target.value)} className="px-2 py-1 rounded border border-neutral-300 bg-white">
+                    <select defaultValue={u.role} onChange={async e=>{ await adminSetRole(u.id, e.target.value); load(); }} className="border rounded px-2 py-1">
                       <option value="user">user</option>
                       <option value="admin">admin</option>
                     </select>
                   </td>
                   <td className="p-2 space-x-2">
-                    <input placeholder="new password" value={tempPass[u.id]||''} onChange={e=>setTempPass(prev=>({...prev,[u.id]:e.target.value}))} className="px-2 py-1 rounded border border-neutral-300 bg-white" />
-                    <button onClick={()=>{ resetPassword(u.id, tempPass[u.id]||'changeme'); }} className="px-2 py-1 rounded border border-neutral-300 bg-white hover:bg-neutral-50">Reset</button>
-                    <button onClick={()=>{ if (u.id!==currentUser?.id) deleteUser(u.id) }} className="px-2 py-1 rounded border border-neutral-300 bg-white hover:bg-neutral-50" disabled={u.id===currentUser?.id}>Delete</button>
+                    <button onClick={async ()=>{ const np = prompt('New password'); if(np){ await adminResetPassword(u.id, np); alert('Password reset'); } }} className="px-2 py-1 border rounded">Reset PW</button>
+                    <button onClick={async ()=>{ if(confirm('Delete user?')){ await adminDeleteUser(u.id); load(); } }} className="px-2 py-1 border rounded text-red-600">Delete</button>
                   </td>
                 </tr>
               ))}
+              {users.length===0 && <tr><td className="p-3 text-gray-500" colSpan={3}>No users</td></tr>}
             </tbody>
           </table>
         </div>
-      </div>
-    </section>
+      </section>
+
+      {/* Products */}
+      <section>
+        <h2 className="text-xl font-semibold mb-3">Products</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {products.map(p=>(
+            <div key={p.id} className="border rounded-2xl p-4 space-y-2">
+              <img src={p.image_url} alt={p.name} className="w-full h-36 object-cover rounded-xl" />
+              <div className="font-medium">{p.name}</div>
+              <div className="text-sm text-gray-600">{(p.price_cents||0)/100} €</div>
+              <button onClick={()=>setEdit(p)} className="w-full px-3 py-2 rounded border">Edit</button>
+            </div>
+          ))}
+          {products.length===0 && <div className="text-gray-500">No products</div>}
+        </div>
+      </section>
+
+      <EditProductModal open={!!edit} product={edit} onClose={()=>setEdit(null)} onSaved={load} />
+    </div>
   )
 }
