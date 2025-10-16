@@ -1,10 +1,14 @@
 // src/components/Header.jsx
 import { useEffect, useState } from 'react'
 import CartDrawer from './CartDrawer'
+import AuthModal from './AuthModal'
 import { getCart } from '../utils/api.db'
+import { useAuth } from '../auth/AuthContext'
 
 export default function Header(){
+  const { currentUser, logout } = useAuth()
   const [openCart, setOpenCart] = useState(false)
+  const [openAuth, setOpenAuth] = useState(false)
   const [count, setCount] = useState(0)
 
   async function refreshCount(){
@@ -22,16 +26,38 @@ export default function Header(){
 
   return (
     <>
-      <nav className="w-full border-b bg-white relative z-10">
+      {/* Sticky Header */}
+      <nav className="sticky top-0 z-[1000] border-b bg-white/90 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <a href="/" className="font-semibold">MK Jewel</a>
+
           <div className="flex items-center gap-3">
+            {/* Auth controls */}
+            {currentUser ? (
+              <>
+                <span className="hidden sm:inline text-sm text-gray-700">{currentUser.email}</span>
+                <button
+                  onClick={logout}
+                  className="px-3 py-1.5 rounded border hover:bg-gray-50"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={()=>setOpenAuth(true)}
+                className="px-3 py-1.5 rounded border hover:bg-gray-50"
+              >
+                Sign in
+              </button>
+            )}
+
+            {/* Cart button */}
             <button
               onClick={()=>setOpenCart(true)}
               className="relative inline-flex items-center justify-center w-12 h-12 rounded-full border border-gray-200 hover:border-gray-300 transition"
               aria-label="Open cart"
             >
-              {/* Cart SVG icon, perfectly centered */}
               <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="black" strokeWidth="2">
                 <circle cx="9" cy="20" r="1.5"></circle>
                 <circle cx="17" cy="20" r="1.5"></circle>
@@ -48,6 +74,7 @@ export default function Header(){
       </nav>
 
       <CartDrawer open={openCart} onClose={()=>setOpenCart(false)} />
+      <AuthModal open={openAuth} onClose={()=>setOpenAuth(false)} />
     </>
   )
 }
