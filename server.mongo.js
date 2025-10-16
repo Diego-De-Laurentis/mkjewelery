@@ -131,16 +131,22 @@ app.delete('/api/admin/users/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// Categories
+app.get('/api/categories', async (_req, res) => {
+  const cats = await Products.distinct('category', { category: { $ne: '' } });
+  res.json(cats.filter(Boolean).sort());
+});
+
 // Products with search/category
 app.get('/api/products', async (req, res) => {
   const { q, category } = req.query || {};
-  const filter = {}
+  const filter = {};
   if (q && String(q).trim()){
-    const rx = new RegExp(String(q).trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'i')
-    filter.$or = [{ name: rx }, { description: rx }, { sku: rx }, { category: rx }]
+    const rx = new RegExp(String(q).trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'i');
+    filter.$or = [{ name: rx }, { description: rx }, { sku: rx }, { category: rx }];
   }
   if (category && String(category).trim()){
-    filter.category = String(category).trim()
+    filter.category = String(category).trim();
   }
   const rows = await Products.find(filter).sort({ created_at: -1 }).toArray();
   res.json(rows.map(({ _id, ...rest }) => ({ id: _id, ...rest })));
@@ -214,6 +220,7 @@ app.delete('/api/cart/items/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// Static
 app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
