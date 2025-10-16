@@ -33,7 +33,8 @@ await CartItems.createIndex({ cartId: 1, productId: 1 }, { unique: true });
 
 const now = () => Math.floor(Date.now() / 1000);
 const newId = (p) => p + '_' + crypto.randomBytes(8).toString('hex');
-const hash = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('sha256').digest('hex'); // double-hash safe-ish
+// Korrektes Hashing (einfaches SHA-256)
+const hash = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
 
 async function seedProductsIfEmpty(){
   const count = await Products.estimatedDocumentCount();
@@ -104,7 +105,7 @@ app.post('/api/logout', async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- Admin: Users (keine harte Auth, UI-seitig admin-only) ----
+// ---- Admin: Users (UI-seitig nur für role=admin sichtbar) ----
 app.get('/api/admin/users', async (_req, res) => {
   const users = await Users.find({}, { projection: { password_hash: 0 } }).sort({ created_at: -1 }).toArray();
   res.json(users.map(u => ({ id: u._id, email: u.email, role: u.role, created_at: u.created_at })));
@@ -125,7 +126,6 @@ app.post('/api/admin/users/:id/reset-password', async (req, res) => {
 app.delete('/api/admin/users/:id', async (req, res) => {
   const r = await Users.deleteOne({ _id: req.params.id });
   if (!r.deletedCount) return res.status(404).json({ error: 'not found' });
-  // kill possible carts owned by that user
   const cart = await Carts.findOne({ userId: req.params.id });
   if (cart){ await CartItems.deleteMany({ cartId: cart._id }); await Carts.deleteOne({ _id: cart._id }); }
   res.json({ ok: true });
@@ -156,7 +156,6 @@ app.put('/api/products/:id', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   const r = await Products.deleteOne({ _id: req.params.id });
   if (r.deletedCount === 0) return res.status(404).json({ error: 'not found' });
-  // remove cart items referencing this product
   await CartItems.deleteMany({ productId: req.params.id });
   res.json({ ok: true });
 });
