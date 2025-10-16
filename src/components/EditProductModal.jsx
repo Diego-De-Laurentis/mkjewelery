@@ -27,14 +27,15 @@ export default function EditProductModal({ product, open=false, onClose=()=>{}, 
     if (r?.ok){ onSaved(); onClose() }
   }
   async function onDelete(){
+    if (!confirm('Delete product?')) return
     const r = await deleteProduct(product.id)
     if (r?.ok){ onSaved(); onClose() }
   }
 
   const ui = (
     <>
-      <div className="fixed inset-0 bg-black/50 z-[10015]" onClick={onClose} />
-      <div className="fixed inset-0 z-[10016] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 z-[11990]" onClick={onClose} />
+      <div className="fixed inset-0 z-[12000] flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Edit Product</h2>
