@@ -16,7 +16,17 @@ export async function logout(){
 }
 
 // Products
-export async function getProducts(){ return fetch('/api/products',{ credentials:'include' }).then(r=>r.json()); }
+export async function getProducts(params={}){
+  const u = new URLSearchParams();
+  if (params.q) u.set('q', params.q);
+  if (params.category) u.set('category', params.category);
+  const r = await fetch('/api/products' + (u.toString()?`?${u}`:''), { credentials:'include' });
+  return r.json();
+}
+export async function getCategories(){
+  const r = await fetch('/api/categories',{ credentials:'include' });
+  return r.json();
+}
 export async function createProduct(p){
   return fetch('/api/products',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p), credentials:'include' }).then(r=>r.json());
 }
@@ -39,15 +49,11 @@ export async function removeCartItem(id){
 }
 
 // Admin: Users
-export async function adminListUsers(){
-  return fetch('/api/admin/users', { credentials:'include' }).then(r=>r.json());
-}
+export async function adminListUsers(){ return fetch('/api/admin/users',{ credentials:'include' }).then(r=>r.json()); }
 export async function adminSetRole(id, role){
-  return fetch(`/api/admin/users/${id}/role`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ role }), credentials:'include' }).then(r=>r.json());
+  return fetch(`/api/admin/users/${id}/role`,{ method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ role }), credentials:'include' }).then(r=>r.json());
 }
 export async function adminResetPassword(id, new_password){
-  return fetch(`/api/admin/users/${id}/reset-password`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ new_password }), credentials:'include' }).then(r=>r.json());
+  return fetch(`/api/admin/users/${id}/reset-password`,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ new_password }), credentials:'include' }).then(r=>r.json());
 }
-export async function adminDeleteUser(id){
-  return fetch(`/api/admin/users/${id}`, { method:'DELETE', credentials:'include' }).then(r=>r.json());
-}
+export async function adminDeleteUser(id){ return fetch(`/api/admin/users/${id}`,{ method:'DELETE', credentials:'include' }).then(r=>r.json()); }
