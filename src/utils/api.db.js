@@ -1,4 +1,11 @@
 // src/utils/api.db.js
+function emitCartChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cart:changed'));
+  }
+}
+
+// Auth
 export async function register(email, password){
   const r = await fetch('/api/register',{
     method:'POST',
@@ -65,9 +72,13 @@ export async function addToCart(product_id, qty){
     body:JSON.stringify({product_id, qty}),
     credentials:'include'
   });
-  return r.json();
+  const j = await r.json();
+  emitCartChanged();
+  return j;
 }
 export async function removeCartItem(id){
   const r = await fetch('/api/cart/items/'+id,{ method:'DELETE', credentials:'include' });
-  return r.json();
+  const j = await r.json();
+  emitCartChanged();
+  return j;
 }
