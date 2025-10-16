@@ -12,14 +12,13 @@
     "start:mongo": "node server.mongo.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "multer": "^1.4.5-lts.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "better-sqlite3": "^11.7.0",
-    "cookie-parser": "^1.4.7",
-    "mongodb": "^6.10.0"
-  },
+  "express": "^4.19.2",
+  "react": "^18.2.0",
+  "react-dom": "^18.2.0",
+  "cookie-parser": "^1.4.7",
+  "mongodb": "^6.10.0",
+  "cors": "^2.8.5"
+}
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.20",
