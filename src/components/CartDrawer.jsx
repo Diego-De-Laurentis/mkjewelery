@@ -1,5 +1,6 @@
 // src/components/CartDrawer.jsx
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getCart, addToCart, removeCartItem } from '../utils/api.db'
 
 export default function CartDrawer({ open=false, onClose=()=>{} }){
@@ -21,6 +22,17 @@ export default function CartDrawer({ open=false, onClose=()=>{} }){
 
   useEffect(()=>{ if(open) load() },[open])
 
+  // Body scroll lock + escape close
+  useEffect(()=>{
+    if (open) {
+      const prev = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      const onKey = (e)=>{ if(e.key==='Escape') onClose() }
+      window.addEventListener('keydown', onKey)
+      return ()=>{ document.body.style.overflow = prev; window.removeEventListener('keydown', onKey) }
+    }
+  },[open, onClose])
+
   async function setQty(item, q){
     const qty = Number(q)
     await addToCart(item.productId, qty) // qty<=0 => server löscht
@@ -33,18 +45,20 @@ export default function CartDrawer({ open=false, onClose=()=>{} }){
 
   const total = items.reduce((s,i)=> s + (i.product?.price_cents||0)*i.qty, 0)
 
-  return (
+  const overlay = (
     <>
-      {/* Overlay */}
+      {/* Overlay covers everything */}
       <div
-        className={`fixed inset-0 bg-black/40 transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/40 transition-opacity duration-300 z-[9998] ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
-      {/* Panel */}
+      {/* Sliding panel above all */}
       <aside
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl transform transition-transform duration-300
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl transform transition-transform duration-300 z-[9999]
         ${open ? 'translate-x-0' : 'translate-x-full'}`}
         aria-hidden={!open}
+        role="dialog"
+        aria-label="Shopping cart"
       >
         <div className="h-full flex flex-col">
           <div className="flex items-center justify-between p-4 border-b">
@@ -84,4 +98,7 @@ export default function CartDrawer({ open=false, onClose=()=>{} }){
       </aside>
     </>
   )
+
+  // Render via portal to avoid parent overflow/z-index issues
+  return createPortal(overlay, document.body)
 }
