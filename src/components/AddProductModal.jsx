@@ -21,6 +21,7 @@ export default function AddProductModal({ open=false, onClose=()=>{}, onCreated=
       sku: e.target.sku.value.trim(),
       name: e.target.name.value.trim(),
       image_url: e.target.image_url.value.trim(),
+      category: e.target.category.value.trim(),
       price_cents: Math.round(Number(e.target.price.value)*100) || 0,
       description: e.target.description.value.trim()
     }
@@ -41,6 +42,7 @@ export default function AddProductModal({ open=false, onClose=()=>{}, onCreated=
             <input name="sku" placeholder="SKU" required className="w-full border rounded px-3 py-2" />
             <input name="name" placeholder="Name" required className="w-full border rounded px-3 py-2" />
             <input name="image_url" placeholder="Image URL" className="w-full border rounded px-3 py-2" />
+            <input name="category" placeholder="Category (e.g. ring, necklace)" className="w-full border rounded px-3 py-2" />
             <input name="price" type="number" step="0.01" placeholder="Price €" required className="w-full border rounded px-3 py-2" />
             <textarea name="description" placeholder="Description" className="w-full border rounded px-3 py-2" />
             <div className="flex gap-2 justify-end">
