@@ -127,4 +127,57 @@ app.put('/api/products/:id', async (req, res) => {
   res.json({ ok: true });
 });
 app.delete('/api/products/:id', async (req, res) => {
-  const r = await Products.dele
+  const r = await Products.deleteOne({ _id: req.params.id });
+  if (r.deletedCount === 0) return res.status(404).json({ error: 'not found' });
+  res.json({ ok: true });
+});
+
+// ---- Cart ----
+app.get('/api/cart', async (req, res) => {
+  const sessionId = resolveSessionId(req);
+  const cart = await getOrCreateCart({ sessionId });
+  const items = await CartItems.aggregate([
+    { $match: { cartId: cart._id } },
+    { $lookup: { from: 'products', localField: 'productId', foreignField: '_id', as: 'product' } },
+    { $unwind: '$product' }
+  ]).toArray();
+  const normalized = items.map(ci => ({
+    id: ci._id,
+    qty: ci.qty,
+    product: { id: ci.product._id, ...Object.fromEntries(Object.entries(ci.product).filter(([k]) => k !== '_id')) }
+  }));
+  res.json({ cartId: cart._id, sessionId, items: normalized });
+});
+app.post('/api/cart/items', async (req, res) => {
+  const { product_id, qty } = req.body || {};
+  if (!product_id && product_id !== 0) return res.status(400).json({ error: 'product_id required' });
+  const q = Number(qty);
+  const sessionId = resolveSessionId(req);
+  const cart = await getOrCreateCart({ sessionId });
+
+  if (!q || q <= 0){
+    await CartItems.deleteOne({ cartId: cart._id, productId: product_id });
+    const items = await CartItems.find({ cartId: cart._id }).toArray();
+    return res.json({ cartId: cart._id, items });
+  }
+  const existing = await CartItems.findOne({ cartId: cart._id, productId: product_id });
+  if (existing){
+    await CartItems.updateOne({ _id: existing._id }, { $set: { qty: q, updated_at: now() } });
+  } else {
+    await CartItems.insertOne({ _id: newId('ci'), cartId: cart._id, productId: product_id, qty: q, created_at: now(), updated_at: now() });
+  }
+  const items = await CartItems.find({ cartId: cart._id }).toArray();
+  res.json({ cartId: cart._id, items });
+});
+app.delete('/api/cart/items/:id', async (req, res) => {
+  const r = await CartItems.deleteOne({ _id: req.params.id });
+  if (r.deletedCount === 0) return res.status(404).json({ error: 'not found' });
+  res.json({ ok: true });
+});
+
+// ---- Static & SPA ----
+app.use(express.static(path.join(__dirname, 'dist')));
+app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log('Mongo API running on ' + PORT));
