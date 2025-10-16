@@ -1,42 +1,53 @@
+// src/components/CartDrawer.jsx
+import { useEffect, useState } from 'react'
+import { getCart, addToCart, removeCartItem } from '../utils/api.db'
 
-import React from 'react'
-import { formatCurrencyEUR } from '../utils/format.js'
+export default function CartDrawer({ open=true, onClose=()=>{} }){
+  const [items, setItems] = useState([])
+  async function load(){ const r = await getCart(); setItems((r.items||[]).map(i => ({ id:i.id, qty:i.qty, productId:i.product?.id, product:i.product }))) }
+  useEffect(()=>{ if(open) load() },[open])
 
-export default function CartDrawer({ open, items, total, setQty, removeItem, onClose }) {
+  async function setQty(item, q){
+    const qty = Number(q)
+    await addToCart(item.productId, qty) // qty<=0 -> Server löscht
+    await load()
+  }
+  async function remove(item){
+    await removeCartItem(item.id)
+    await load()
+  }
+
   if (!open) return null
+  const total = items.reduce((s,i)=> s + (i.product?.price_cents||0)*i.qty, 0)
+
   return (
-    <div className="fixed inset-0 z-40">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <aside className="absolute right-0 top-0 h-full w-full sm:w-[28rem] bg-white border-l border-neutral-200 shadow-xl flex flex-col">
-        <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-          <div className="font-medium">Your Cart</div>
-          <button onClick={onClose} className="px-2 py-1 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors">Close</button>
+    <div className="fixed inset-0 bg-black/40 flex justify-end">
+      <div className="h-full w-full max-w-md bg-white p-4 flex flex-col">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-semibold">Cart</h2>
+          <button onClick={onClose} className="px-2 py-1 rounded border">Close</button>
         </div>
-        <div className="flex-1 overflow-auto divide-y divide-neutral-200">
-          {items.length === 0 && (<div className="p-6 text-sm text-neutral-500">Cart is empty.</div>)}
-          {items.map(({ product: p, qty }) => (
-            <div key={p.id} className="p-4 flex gap-3">
-              <img src={p.image} alt={p.name} className="h-16 w-16 rounded-lg object-cover border border-neutral-200 transition-transform duration-200 hover:scale-[1.03]" />
-              <div className="flex-1">
-                <div className="font-medium">{p.name}</div>
-                <div className="text-sm text-neutral-500">{p.category}</div>
-                <div className="mt-1 font-semibold">{formatCurrencyEUR(p.price)}</div>
-                <div className="mt-2 inline-flex items-center rounded-xl border border-neutral-300 bg-white">
-                  <button onClick={() => setQty(p.id, Math.max(0, qty - 1))} className="px-3 py-1.5 hover:bg-neutral-50 transition-colors">-</button>
-                  <div className="px-3">{qty}</div>
-                  <button onClick={() => setQty(p.id, qty + 1)} className="px-3 py-1.5 hover:bg-neutral-50 transition-colors">+</button>
-                </div>
+        <div className="flex-1 overflow-auto space-y-3">
+          {items.map(i=>(
+            <div key={i.id} className="border rounded p-3 flex items-center justify-between">
+              <div>
+                <div className="font-medium">{i.product?.name}</div>
+                <div className="text-sm text-gray-500">{(i.product?.price_cents||0)/100} €</div>
               </div>
-              <button onClick={() => removeItem(p.id)} className="self-start px-2 py-1 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors">Remove</button>
+              <div className="flex items-center gap-2">
+                <input type="number" min="0" value={i.qty} onChange={e=>setQty(i, e.target.value)} className="w-16 border rounded px-2 py-1" />
+                <button onClick={()=>remove(i)} className="px-2 py-1 rounded border">Remove</button>
+              </div>
             </div>
           ))}
+          {items.length===0 && <div className="text-sm text-gray-500">Empty</div>}
         </div>
-        <div className="p-4 border-t border-neutral-200">
-          <div className="flex items-center justify-between text-sm"><div>Subtotal</div><div className="font-semibold">{formatCurrencyEUR(total)}</div></div>
-          <button className="mt-3 w-full px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 transition-colors">Checkout</button>
-          <p className="mt-2 text-xs text-neutral-500">Checkout is a demo. Integrate Stripe or your provider.</p>
+        <div className="pt-3 border-t">
+          <div className="flex justify-between font-semibold">
+            <span>Total</span><span>{(total/100).toFixed(2)} €</span>
+          </div>
         </div>
-      </aside>
+      </div>
     </div>
   )
 }
