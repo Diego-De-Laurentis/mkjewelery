@@ -22,20 +22,23 @@ export default function Header(){
 
   return (
     <>
-      <nav className="w-full border-b bg-white">
+      <nav className="w-full border-b bg-white relative z-10">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <a href="/" className="font-semibold">MK Jewel</a>
           <div className="flex items-center gap-3">
-            {/* weitere Nav-Items hier */}
             <button
               onClick={()=>setOpenCart(true)}
-              className="relative rounded-full border w-10 h-10 flex items-center justify-center"
+              className="relative inline-flex items-center justify-center w-12 h-12 rounded-full border border-gray-200 hover:border-gray-300 transition"
               aria-label="Open cart"
             >
-              {/* simple cart icon */}
-              <span className="inline-block w-5 h-5 border-b-2 border-black rounded-b-sm" />
+              {/* Cart SVG icon, perfectly centered */}
+              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="black" strokeWidth="2">
+                <circle cx="9" cy="20" r="1.5"></circle>
+                <circle cx="17" cy="20" r="1.5"></circle>
+                <path d="M3 4h2l2.4 10.4a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H7"></path>
+              </svg>
               {count > 0 && (
-                <span className="absolute -top-1 -right-1 text-xs px-1.5 py-0.5 rounded-full bg-black text-white">
+                <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center text-xs rounded-full bg-black text-white">
                   {count}
                 </span>
               )}
