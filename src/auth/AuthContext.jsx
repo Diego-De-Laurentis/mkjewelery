@@ -1,47 +1,39 @@
-
-import React, { createContext, useContext, useEffect, useMemo } from 'react'
-import { useLocalStorage } from '../utils/storage.js'
+// src/auth/AuthContext.jsx
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { register as apiRegister, login as apiLogin, logout as apiLogout, me as apiMe } from '../utils/api.db'
 
 const AuthContext = createContext(null)
-const ADMIN_SEED = { id: 'u_admin', email: 'admin@mkjewel.example', password: 'admin123', role: 'admin', createdAt: Date.now() }
 
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useLocalStorage('mkj:users', [])
-  const [session, setSession] = useLocalStorage('mkj:session', null)
+  const [currentUser, setCurrentUser] = useState(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    if (!Array.isArray(users) || users.length === 0 || !users.find(u => u.role === 'admin')) {
-      setUsers(prev => {
-        const exists = (prev || []).find(u => u.email === ADMIN_SEED.email)
-        if (exists) return prev
-        return [ADMIN_SEED, ...(prev || [])]
-      })
-    }
+    ;(async () => {
+      const u = await apiMe()
+      if (u?.id) setCurrentUser(u)
+      setReady(true)
+    })()
   }, [])
 
-  const currentUser = useMemo(() => users.find(u => session && u.id === session.userId) || null, [users, session])
-  const isAdmin = !!currentUser && currentUser.role === 'admin'
-
-  function login(email, password) {
-    const u = users.find(x => x.email.toLowerCase() === String(email).toLowerCase())
-    if (!u || u.password !== password) throw new Error('Invalid credentials')
-    setSession({ userId: u.id })
-    return u
+  async function register(email, password){
+    const r = await apiRegister(email, password)
+    if (r?.id) { setCurrentUser({ id:r.id, email:r.email, role:r.role }); window.location.reload() }
+    else throw new Error(r?.error || 'register failed')
   }
-  function logout() { setSession(null) }
-  function register(email, password) {
-    if (users.find(x => x.email.toLowerCase() === String(email).toLowerCase())) throw new Error('Email in use')
-    const u = { id: 'u_' + Date.now(), email, password, role: 'user', createdAt: Date.now() }
-    setUsers(prev => [u, ...prev])
-    setSession({ userId: u.id })
-    return u
+  async function login(email, password){
+    const r = await apiLogin(email, password)
+    if (r?.id) { setCurrentUser({ id:r.id, email:r.email, role:r.role }); window.location.reload() }
+    else throw new Error(r?.error || 'login failed')
+  }
+  async function logout(){
+    await apiLogout()
+    setCurrentUser(null)
+    window.location.reload()
   }
 
-  function setUserRole(userId, role) { setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u)) }
-  function deleteUser(userId) { setUsers(prev => prev.filter(u => u.id !== userId)); if (session && session.userId === userId) setSession(null) }
-  function resetPassword(userId, newPass) { setUsers(prev => prev.map(u => u.id === userId ? { ...u, password: newPass } : u)) }
-
-  const value = { users, setUsers, currentUser, isAdmin, login, logout, register, setUserRole, deleteUser, resetPassword }
+  const value = useMemo(() => ({ currentUser, ready, register, login, logout }), [currentUser, ready])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
-export function useAuth(){ const ctx = useContext(AuthContext); if (!ctx) throw new Error('useAuth must be used within AuthProvider'); return ctx }
+
+export function useAuth(){ return useContext(AuthContext) }

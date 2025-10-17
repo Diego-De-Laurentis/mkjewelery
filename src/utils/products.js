@@ -1,22 +1,52 @@
+// src/utils/products.js
 
-export const SAMPLE_PRODUCTS = [
-  { id: 'p1', name: 'Astra Solitaire Ring', price: 1299, category: 'Rings', image: '/images/sample-1.svg', description: '14K white gold solitaire with brilliant-cut center stone.' },
-  { id: 'p2', name: 'Luna Pendant Necklace', price: 890, category: 'Necklaces', image: '/images/sample-2.svg', description: 'Delicate pendant on an adjustable chain in 18K gold.' },
-  { id: 'p3', name: 'Aria Hoop Earrings', price: 420, category: 'Earrings', image: '/images/sample-3.svg', description: 'Timeless hoops with secure clasps and mirror finish.' },
-  { id: 'p4', name: 'Seraphine Tennis Bracelet', price: 2150, category: 'Bracelets', image: '/images/sample-4.svg', description: 'Continuous line bracelet with prong-set stones.' },
-]
-export function filterProducts(list, category, query) {
-  const q = (query || '').toLowerCase()
-  return list.filter(p => (category === 'All' || p.category === category) && (!q || [p.name, p.description, p.category].join(' ').toLowerCase().includes(q)))
+// ---- Filter-Logik wie gefordert ----
+// Regeln:
+// - kein category & query leer  -> alle
+// - nur category                -> nur diese Kategorie
+// - nur query                   -> nur Namens-Treffer
+// - category + query            -> Kategorie ODER Namens-Treffer
+export function filterProducts(products, category, query) {
+  const list = Array.isArray(products) ? products : []
+  const cat = String(category || '').trim()
+  const hasCat = !!cat && cat.toLowerCase() !== 'all'
+
+  const q = String(query || '').trim()
+  const hasQ = q.length > 0
+  const nameRx = hasQ ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null
+
+  return list.filter((p) => {
+    const pCat = String(p.category || '').toLowerCase()
+    const inCat = hasCat ? pCat === cat.toLowerCase() : true
+    const nameHit = hasQ ? nameRx.test(String(p.name || '')) : true
+
+    if (hasCat && hasQ) return inCat || nameHit
+    if (hasCat && !hasQ) return inCat
+    if (!hasCat && hasQ) return nameHit
+    return true
+  })
 }
+
+// ---- Rest: unverändert / Hilfen ----
 export function calcCartTotal(products, cart) {
-  return Object.entries(cart).reduce((sum, [id, qty]) => {
-    const p = products.find(x => x.id === id)
-    return p ? sum + p.price * qty : sum
-  }, 0)
+  const map = new Map(products.map((p) => [p.id, p]))
+  let cents = 0
+  for (const [id, qty] of Object.entries(cart || {})) {
+    const p = map.get(id)
+    if (!p) continue
+    const priceCents =
+      typeof p.price_cents === 'number'
+        ? p.price_cents
+        : Math.round(Number(p.price || 0) * 100)
+    cents += Math.max(0, Number(qty) || 0) * priceCents
+  }
+  return cents
 }
+
+// Beispiel-Themes wie zuvor
 export const THEMES = {
-  classic: { name: 'Classic', accent: 'from-amber-400 to-yellow-200', ring: 'ring-amber-400' },
-  minimal: { name: 'Minimal', accent: 'from-sky-400 to-cyan-200', ring: 'ring-sky-400' },
-  luxe: { name: 'Luxe', accent: 'from-rose-400 to-pink-200', ring: 'ring-rose-400' },
+  classic: {},
 }
+
+// Optionales Fallback für lokale Demo
+export const SAMPLE_PRODUCTS = []

@@ -1,42 +1,81 @@
+// src/components/CartDrawer.jsx
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { getCart, addToCart, removeCartItem } from '../utils/api.db'
 
-import React from 'react'
-import { formatCurrencyEUR } from '../utils/format.js'
+export default function CartDrawer({ open=false, onClose=()=>{} }){
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(false)
 
-export default function CartDrawer({ open, items, total, setQty, removeItem, onClose }) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-40">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <aside className="absolute right-0 top-0 h-full w-full sm:w-[28rem] bg-white border-l border-neutral-200 shadow-xl flex flex-col">
-        <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-          <div className="font-medium">Your Cart</div>
-          <button onClick={onClose} className="px-2 py-1 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors">Close</button>
-        </div>
-        <div className="flex-1 overflow-auto divide-y divide-neutral-200">
-          {items.length === 0 && (<div className="p-6 text-sm text-neutral-500">Cart is empty.</div>)}
-          {items.map(({ product: p, qty }) => (
-            <div key={p.id} className="p-4 flex gap-3">
-              <img src={p.image} alt={p.name} className="h-16 w-16 rounded-lg object-cover border border-neutral-200 transition-transform duration-200 hover:scale-[1.03]" />
-              <div className="flex-1">
-                <div className="font-medium">{p.name}</div>
-                <div className="text-sm text-neutral-500">{p.category}</div>
-                <div className="mt-1 font-semibold">{formatCurrencyEUR(p.price)}</div>
-                <div className="mt-2 inline-flex items-center rounded-xl border border-neutral-300 bg-white">
-                  <button onClick={() => setQty(p.id, Math.max(0, qty - 1))} className="px-3 py-1.5 hover:bg-neutral-50 transition-colors">-</button>
-                  <div className="px-3">{qty}</div>
-                  <button onClick={() => setQty(p.id, qty + 1)} className="px-3 py-1.5 hover:bg-neutral-50 transition-colors">+</button>
+  async function load(){
+    setLoading(true)
+    const r = await getCart()
+    const normalized = (r.items||[]).map(i => ({
+      id: i.id, qty: i.qty, productId: i.product?.id, product: i.product
+    }))
+    setItems(normalized); setLoading(false)
+  }
+  useEffect(()=>{ if(open) load() },[open])
+
+  useEffect(()=>{
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = e => { if (e.key==='Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return ()=>{ document.body.style.overflow = prev; window.removeEventListener('keydown', onKey) }
+  },[open, onClose])
+
+  async function setQty(item, q){
+    await addToCart(item.productId, Number(q)); await load()
+  }
+  async function remove(item){ await removeCartItem(item.id); await load() }
+
+  const total = items.reduce((s,i)=> s + (i.product?.price_cents||0)*i.qty, 0)
+
+  const overlay = (
+    <>
+      {/* Unter Modal, über Seite */}
+      <div
+        className={`fixed inset-0 bg-black/40 transition-opacity duration-300 z-[9998] ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+      />
+      <aside
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl transform transition-transform duration-300 z-[9999]
+        ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        aria-hidden={!open}
+        role="dialog"
+        aria-label="Shopping cart"
+      >
+        <div className="h-full flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-semibold">Cart</h2>
+            <button onClick={onClose} className="px-2 py-1 rounded border">Close</button>
+          </div>
+          <div className="flex-1 overflow-auto p-4 space-y-3">
+            {loading && <div className="text-sm text-gray-500">Loading…</div>}
+            {!loading && items.length===0 && <div className="text-sm text-gray-500">Empty</div>}
+            {items.map(i=>(
+              <div key={i.id} className="border rounded p-3 flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{i.product?.name}</div>
+                  <div className="text-sm text-gray-500">{(i.product?.price_cents||0)/100} €</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="number" min="0" value={i.qty} onChange={e=>setQty(i, e.target.value)} className="w-16 border rounded px-2 py-1" />
+                  <button onClick={()=>remove(i)} className="px-2 py-1 rounded border">Remove</button>
                 </div>
               </div>
-              <button onClick={() => removeItem(p.id)} className="self-start px-2 py-1 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors">Remove</button>
+            ))}
+          </div>
+          <div className="p-4 border-t">
+            <div className="flex justify-between font-semibold">
+              <span>Total</span><span>{(total/100).toFixed(2)} €</span>
             </div>
-          ))}
-        </div>
-        <div className="p-4 border-t border-neutral-200">
-          <div className="flex items-center justify-between text-sm"><div>Subtotal</div><div className="font-semibold">{formatCurrencyEUR(total)}</div></div>
-          <button className="mt-3 w-full px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 transition-colors">Checkout</button>
-          <p className="mt-2 text-xs text-neutral-500">Checkout is a demo. Integrate Stripe or your provider.</p>
+          </div>
         </div>
       </aside>
-    </div>
+    </>
   )
+  return createPortal(overlay, document.body)
 }

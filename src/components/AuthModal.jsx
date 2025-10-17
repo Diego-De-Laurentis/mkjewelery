@@ -1,46 +1,66 @@
+// src/components/AuthModal.jsx
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { useAuth } from '../auth/AuthContext'
 
-import React, { useState } from 'react'
-import { useAuth } from '../auth/AuthContext.jsx'
+export default function AuthModal({ open=false, onClose=()=>{} }){
+  const { register, login } = useAuth()
+  const [mode, setMode] = useState('login') // 'login' | 'register'
 
-export default function AuthModal({ open, onClose }) {
-  const { login, register } = useAuth()
-  const [mode, setMode] = useState('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState(null)
+  useEffect(()=>{
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return ()=>{ document.body.style.overflow = prev; window.removeEventListener('keydown', onKey) }
+  },[open, onClose])
+
   if (!open) return null
-  function reset() { setEmail(''); setPassword(''); setError(null) }
-  async function handleSubmit(e) {
+
+  async function onSubmit(e){
     e.preventDefault()
-    try {
-      if (mode === 'login') await login(email, password)
-      else await register(email, password)
-      reset(); onClose()
-    } catch (err) { setError(err?.message || 'Error') }
+    const email = e.target.email.value.trim()
+    const password = e.target.password.value
+    if (mode === 'register') await register(email, password)
+    else await login(email, password)
+    onClose()
   }
-  return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(28rem,95vw)] rounded-2xl border border-neutral-200 bg-white shadow-xl">
-        <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-          <div className="font-medium">{mode === 'login' ? 'Sign in' : 'Create account'}</div>
-          <button onClick={onClose} className="px-2 py-1 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors">Close</button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-4 grid gap-3">
-          {mode === 'login' && (<div className="text-xs text-neutral-600">Demo admin: <span className="font-mono">admin@mkjewel.example</span> / <span className="font-mono">admin123</span></div>)}
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          <input type="email" required placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
-          <input type="password" required placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="px-3 py-2 rounded-xl border border-neutral-300 bg-white focus:ring-2 focus:ring-neutral-200 outline-none transition-shadow" />
-          <button type="submit" className="px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 transition-colors">{mode === 'login' ? 'Sign in' : 'Create account'}</button>
-          <div className="text-xs text-neutral-600">
-            {mode === 'login' ? (
-              <span>New here? <button type="button" className="underline" onClick={()=>setMode('register')}>Create an account</button></span>
+
+  const ui = (
+    <>
+      {/* Overlay über ALLEM */}
+      <div
+        className="fixed inset-0 bg-black/50 z-[10000]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      {/* Modal */}
+      <div className="fixed inset-0 z-[10010] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">
+              {mode==='register' ? 'Create account' : 'Sign in'}
+            </h2>
+            <button onClick={onClose} className="px-2 py-1 rounded border">Close</button>
+          </div>
+          <form onSubmit={onSubmit} className="space-y-3">
+            <input name="email" type="email" placeholder="Email" required className="w-full border rounded px-3 py-2" />
+            <input name="password" type="password" placeholder="Password" required className="w-full border rounded px-3 py-2" />
+            <button type="submit" className="w-full rounded bg-black text-white py-2">
+              {mode==='register' ? 'Create account' : 'Sign in'}
+            </button>
+          </form>
+          <div className="text-sm mt-3">
+            {mode==='register' ? (
+              <button className="underline" onClick={()=>setMode('login')}>Have an account? Sign in</button>
             ) : (
-              <span>Have an account? <button type="button" className="underline" onClick={()=>setMode('login')}>Sign in</button></span>
+              <button className="underline" onClick={()=>setMode('register')}>Need an account? Create one</button>
             )}
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </>
   )
+  return createPortal(ui, document.body)
 }

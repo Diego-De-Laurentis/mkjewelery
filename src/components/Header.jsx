@@ -1,52 +1,82 @@
+// src/components/Header.jsx
+import { useEffect, useState } from 'react'
+import CartDrawer from './CartDrawer'
+import AuthModal from './AuthModal'
+import AdminPanel from './AdminPanel'
+import { getCart } from '../utils/api.db'
+import { useAuth } from '../auth/AuthContext'
 
-import React from 'react'
-import { THEMES } from '../utils/products.js'
-import { useAuth } from '../auth/AuthContext.jsx'
+export default function Header(){
+  const { currentUser, logout } = useAuth()
+  const isAdmin = currentUser?.role === 'admin'
+  const [openCart, setOpenCart] = useState(false)
+  const [openAuth, setOpenAuth] = useState(false)
+  const [openAdmin, setOpenAdmin] = useState(false)
+  const [count, setCount] = useState(0)
 
-export default function Header({ themeKey, setThemeKey, backend, cartCount, onOpenCart, onOpenAuth, currentUser }) {
-  const theme = THEMES[themeKey] ?? THEMES.classic
-  const { logout, isAdmin } = useAuth()
+  async function refreshCount(){
+    const r = await getCart()
+    const c = (r.items||[]).reduce((s,i)=> s + Number(i.qty||0), 0)
+    setCount(c)
+  }
+  useEffect(()=>{
+    refreshCount()
+    const handler = ()=> refreshCount()
+    window.addEventListener('cart:changed', handler)
+    return ()=> window.removeEventListener('cart:changed', handler)
+  },[])
+
   return (
-    <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-neutral-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <>
+      <nav className="sticky top-0 z-[1000] border-b bg-white/90 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+          <a href="/" className="font-semibold">MK Jewel</a>
           <div className="flex items-center gap-3">
-            <div className={`h-9 w-9 rounded-xl bg-gradient-to-br ${theme.accent}`} />
-            <div className="leading-tight">
-              <div className="text-xl font-semibold tracking-tight">MK Jewel</div>
-              <div className="text-[10px] uppercase tracking-widest text-neutral-500">Fine Jewelry</div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-xs border border-neutral-300">{(THEMES[themeKey]?.name) || 'Classic'}</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            <a href="#collections" className="hover:opacity-80 transition-opacity">Collections</a>
-            <a href="#about" className="hover:opacity-80 transition-opacity">About</a>
-            <a href="#care" className="hover:opacity-80 transition-opacity">Care</a>
-          </nav>
-          <div className="flex items-center gap-2">
-            {backend ? (
-              <span className="hidden sm:inline text-xs px-2 py-1 rounded-lg border border-green-600/40 text-green-700">API</span>
-            ) : (
-              <span className="hidden sm:inline text-xs px-2 py-1 rounded-lg border border-neutral-300 text-neutral-500">Local</span>
+            {isAdmin && (
+              <button
+                onClick={()=>setOpenAdmin(true)}
+                className="px-3 py-1.5 rounded border hover:bg-gray-50"
+              >
+                Admin
+              </button>
             )}
-            <select aria-label="Theme" value={themeKey} onChange={e => setThemeKey(e.target.value)} className="hidden sm:block text-sm px-2 py-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors">
-              {Object.entries(THEMES).map(([k, t]) => (<option key={k} value={k}>{t.name}</option>))}
-            </select>
-            {!currentUser ? (
-              <button onClick={onOpenAuth} className="px-2 py-1 rounded border border-neutral-300 bg-white hover:bg-neutral-50 text-sm">Sign in</button>
-            ) : (
+
+            {currentUser ? (
               <>
-                <span className="text-sm text-neutral-700">{currentUser.email}{isAdmin && ' · admin'}</span>
-                <button onClick={logout} className="px-2 py-1 rounded border border-neutral-300 bg-white hover:bg-neutral-50 text-sm">Sign out</button>
+                <span className="hidden sm:inline text-sm text-gray-700">{currentUser.email}</span>
+                <button onClick={logout} className="px-3 py-1.5 rounded border hover:bg-gray-50">
+                  Sign out
+                </button>
               </>
+            ) : (
+              <button onClick={()=>setOpenAuth(true)} className="px-3 py-1.5 rounded border hover:bg-gray-50">
+                Sign in
+              </button>
             )}
-            <button onClick={onOpenCart} className="relative p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 transition-colors" aria-label="Open cart">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M3 3h2l3.6 7.59-1.35 2.45A2 2 0 0 0 9 16h9a2 2 0 0 0 1.79-1.11l3-6A1 1 0 0 0 21 8H7"/></svg>
-              {cartCount > 0 && (<span className="absolute -top-1 -right-1 h-5 min-w-[1.25rem] px-1 rounded-full text-[10px] bg-neutral-900 text-white flex items-center justify-center">{cartCount}</span>)}
+
+            <button
+              onClick={()=>setOpenCart(true)}
+              className="relative inline-flex items-center justify-center w-12 h-12 rounded-full border border-gray-200 hover:border-gray-300 transition"
+              aria-label="Open cart"
+            >
+              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="black" strokeWidth="2">
+                <circle cx="9" cy="20" r="1.5"></circle>
+                <circle cx="17" cy="20" r="1.5"></circle>
+                <path d="M3 4h2l2.4 10.4a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H7"></path>
+              </svg>
+              {count > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center text-xs rounded-full bg-black text-white">
+                  {count}
+                </span>
+              )}
             </button>
           </div>
         </div>
-      </div>
-    </header>
+      </nav>
+
+      <CartDrawer open={openCart} onClose={()=>setOpenCart(false)} />
+      <AuthModal open={openAuth} onClose={()=>setOpenAuth(false)} />
+      <AdminPanel open={openAdmin} onClose={()=>setOpenAdmin(false)} />
+    </>
   )
 }
