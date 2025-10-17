@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { getCategories } from '../utils/api.db'
 
-export default function Controls({ onFilter = () => {} }) {
+export default function Controls({ onFilter }) {
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
   const [cats, setCats] = useState([])
