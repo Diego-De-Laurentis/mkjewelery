@@ -2,17 +2,15 @@
 function emitCartChanged(){ if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cart:changed')); }
 
 // Auth
+export async function me(){ return fetch('/api/me',{ credentials:'include' }).then(r=>r.json()); }
 export async function register(email, password){
-  const r = await fetch('/api/register',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}), credentials:'include' });
-  return r.json();
+  return fetch('/api/register',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}), credentials:'include' }).then(r=>r.json());
 }
 export async function login(email, password){
-  const r = await fetch('/api/login',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}), credentials:'include' });
-  return r.json();
+  return fetch('/api/login',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}), credentials:'include' }).then(r=>r.json());
 }
 export async function logout(){
-  const r = await fetch('/api/logout',{ method:'POST', credentials:'include' });
-  return r.json();
+  return fetch('/api/logout',{ method:'POST', credentials:'include' }).then(r=>r.json());
 }
 
 // Products
@@ -20,12 +18,7 @@ export async function getProducts(params={}){
   const u = new URLSearchParams();
   if (params.q) u.set('q', params.q);
   if (params.category) u.set('category', params.category);
-  const r = await fetch('/api/products' + (u.toString()?`?${u}`:''), { credentials:'include' });
-  return r.json();
-}
-export async function getCategories(){
-  const r = await fetch('/api/categories',{ credentials:'include' });
-  return r.json();
+  return fetch('/api/products' + (u.toString()?`?${u}`:''), { credentials:'include' }).then(r=>r.json());
 }
 export async function createProduct(p){
   return fetch('/api/products',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p), credentials:'include' }).then(r=>r.json());
@@ -35,6 +28,15 @@ export async function updateProduct(id, p){
 }
 export async function deleteProduct(id){
   return fetch('/api/products/'+id,{ method:'DELETE', credentials:'include' }).then(r=>r.json());
+}
+
+// Categories
+export async function getCategories(){ return fetch('/api/categories',{ credentials:'include' }).then(r=>r.json()); }
+export async function adminAddCategory(name){
+  return fetch('/api/admin/categories',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name }), credentials:'include' }).then(r=>r.json());
+}
+export async function adminDeleteCategory(id){
+  return fetch('/api/admin/categories/'+id,{ method:'DELETE', credentials:'include' }).then(r=>r.json());
 }
 
 // Cart
