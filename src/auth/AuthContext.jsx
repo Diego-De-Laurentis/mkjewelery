@@ -1,11 +1,21 @@
 // src/auth/AuthContext.jsx
-import { createContext, useContext, useMemo, useState } from 'react'
-import { register as apiRegister, login as apiLogin, logout as apiLogout } from '../utils/api.db'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { register as apiRegister, login as apiLogin, logout as apiLogout, me as apiMe } from '../utils/api.db'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
+  const [ready, setReady] = useState(false)
+
+  // Persistenz: bei App-Start Cookie prüfen
+  useEffect(()=>{
+    ;(async ()=>{
+      const u = await apiMe()
+      if (u?.id) setCurrentUser(u)
+      setReady(true)
+    })()
+  },[])
 
   async function register(email, password){
     const r = await apiRegister(email, password)
@@ -22,7 +32,7 @@ export function AuthProvider({ children }) {
     setCurrentUser(null)
   }
 
-  const value = useMemo(()=>({ currentUser, register, login, logout }),[currentUser])
+  const value = useMemo(()=>({ currentUser, ready, register, login, logout }),[currentUser, ready])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 export function useAuth(){ return useContext(AuthContext) }
