@@ -38,11 +38,7 @@ await CartItems.createIndex({ cartId: 1, productId: 1 }, { unique: true });
 const now = () => Math.floor(Date.now() / 1000);
 const newId = (p) => p + '_' + crypto.randomBytes(8).toString('hex');
 const hash = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
-
-const toSlug = (s) =>
-  String(s||'').trim().toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu,'-')
-    .replace(/^-+|-+$/g,'');
+const toSlug = (s) => String(s||'').trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-+|-+$/g,'');
 
 // ---- Seed ----
 async function seedIfEmpty(){
@@ -65,10 +61,27 @@ async function seedIfEmpty(){
 await seedIfEmpty();
 
 // ---- Helpers ----
+function readAuth(req){
+  try{
+    const raw = req.cookies?.auth;
+    if (!raw) return null;
+    const p = JSON.parse(Buffer.from(String(raw), 'base64').toString('utf8'));
+    return p?.id && p?.email ? p : null;
+  }catch{ return null; }
+}
+function setAuthCookie(res, user){
+  const payload = Buffer.from(JSON.stringify({ id:user._id, email:user.email, role:user.role })).toString('base64');
+  res.cookie('auth', payload, { httpOnly:true, sameSite:'lax', maxAge: 1000*60*60*24*30 });
+}
 function resolveSessionId(req){
   const fromCookie = req.cookies?.sid;
   const fromHeader = req.header('X-Session-Id');
   return fromCookie || fromHeader || newId('anon');
+}
+async function getOrCreateCartIdentity(req){
+  const auth = readAuth(req);
+  if (auth?.id) return { userId: auth.id };
+  return { sessionId: resolveSessionId(req) };
 }
 async function getOrCreateCart({ userId, sessionId }){
   let cart;
@@ -81,10 +94,18 @@ async function getOrCreateCart({ userId, sessionId }){
   }
   return cart;
 }
-function setAuthCookie(res, user){
-  const payload = Buffer.from(JSON.stringify({ id:user._id, email:user.email, role:user.role })).toString('base64');
-  const opts = { httpOnly: true, sameSite: 'lax', maxAge: 1000*60*60*24*30 };
-  res.cookie('auth', payload, opts);
+async function mergeCarts(srcCart, dstCart){
+  const items = await CartItems.find({ cartId: srcCart._id }).toArray();
+  for (const it of items){
+    const ex = await CartItems.findOne({ cartId: dstCart._id, productId: it.productId });
+    if (ex){
+      await CartItems.updateOne({ _id: ex._id }, { $set: { qty: ex.qty + it.qty, updated_at: now() } });
+    } else {
+      await CartItems.insertOne({ _id:newId('ci'), cartId: dstCart._id, productId: it.productId, qty: it.qty, created_at: now(), updated_at: now() });
+    }
+  }
+  await CartItems.deleteMany({ cartId: srcCart._id });
+  await Carts.deleteOne({ _id: srcCart._id });
 }
 
 // ---- Auth ----
@@ -95,7 +116,7 @@ app.post('/api/register', async (req, res) => {
     const doc = { _id: newId('u'), email: String(email).toLowerCase(), password_hash: hash(password), role: 'user', created_at: now() };
     await Users.insertOne(doc);
     setAuthCookie(res, doc);
-    res.cookie('sid', newId('s'), { httpOnly: true, sameSite:'lax', maxAge: 1000*60*60*24*30 });
+    res.cookie('sid', newId('s'), { httpOnly:true, sameSite:'lax', maxAge: 1000*60*60*24*30 });
     res.json({ id: doc._id, email: doc.email, role: doc.role });
   } catch (e) {
     if (String(e).includes('E11000')) return res.status(409).json({ error: 'email exists' });
@@ -106,11 +127,23 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body || {};
   const u = await Users.findOne({ email: String(email||'').toLowerCase() });
   if (!u || u.password_hash !== hash(password)) return res.status(401).json({ error: 'invalid credentials' });
-  res.cookie('sid', newId('s'), { httpOnly: true, sameSite: 'lax', maxAge: 1000*60*60*24*30 });
+
+  // merge: Gast-Cart (alte sid) -> User-Cart
+  const oldSid = req.cookies?.sid;
+  let guestCart = null;
+  if (oldSid) guestCart = await Carts.findOne({ sessionId: oldSid });
+
+  const userCart = await getOrCreateCart({ userId: u._id });
+  if (guestCart) await mergeCarts(guestCart, userCart);
+
+  // neue Session-Cookie und Auth-Cookie setzen
+  res.cookie('sid', newId('s'), { httpOnly:true, sameSite:'lax', maxAge: 1000*60*60*24*30 });
   setAuthCookie(res, u);
+
   res.json({ id: u._id, email: u.email, role: u.role });
 });
 app.post('/api/logout', async (req, res) => {
+  // User-Cart bleibt bestehen
   const sid = req.cookies?.sid;
   if (sid){
     const cart = await Carts.findOne({ sessionId: sid });
@@ -122,9 +155,8 @@ app.post('/api/logout', async (req, res) => {
 });
 app.get('/api/me', async (req, res) => {
   try{
-    const raw = req.cookies?.auth;
-    if (!raw) return res.json(null);
-    const parsed = JSON.parse(Buffer.from(String(raw), 'base64').toString('utf8'));
+    const parsed = readAuth(req);
+    if (!parsed) return res.json(null);
     const u = await Users.findOne({ _id: parsed.id, email: parsed.email });
     if (!u) return res.json(null);
     res.json({ id: u._id, email: u.email, role: u.role });
@@ -180,17 +212,30 @@ app.delete('/api/admin/categories/:id', async (req, res) => {
   res.json({ ok:true });
 });
 
-// ---- Products (search + category filter) ----
+// ---- Products (Filter + Suche wie gefordert) ----
+// Logik:
+// - keine category & q leer    -> alle
+// - nur category               -> nur category
+// - nur q                      -> nur Namens-Treffer
+// - category + q               -> category ODER Namens-Treffer
 app.get('/api/products', async (req, res) => {
   const { q, category } = req.query || {};
-  const filter = {};
-  if (q && String(q).trim()){
+  const hasQ = !!String(q||'').trim();
+  const hasCat = !!String(category||'').trim();
+
+  let filter = {};
+  if (!hasCat && !hasQ) {
+    filter = {};
+  } else if (hasCat && !hasQ) {
+    filter = { category: String(category).trim() };
+  } else if (!hasCat && hasQ) {
     const rx = new RegExp(String(q).trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'i');
-    filter.$or = [{ name: rx }, { description: rx }, { sku: rx }, { category: rx }];
+    filter = { name: rx };
+  } else {
+    const rx = new RegExp(String(q).trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'i');
+    filter = { $or: [ { category: String(category).trim() }, { name: rx } ] };
   }
-  if (category && String(category).trim()){
-    filter.category = String(category).trim();
-  }
+
   const rows = await Products.find(filter).sort({ created_at: -1 }).toArray();
   res.json(rows.map(({ _id, ...rest }) => ({ id: _id, ...rest })));
 });
@@ -221,10 +266,10 @@ app.delete('/api/products/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- Cart ----
+// ---- Cart (nutzt userId wenn eingeloggt, sonst sid) ----
 app.get('/api/cart', async (req, res) => {
-  const sessionId = resolveSessionId(req);
-  const cart = await getOrCreateCart({ sessionId });
+  const id = await getOrCreateCartIdentity(req);
+  const cart = await getOrCreateCart(id);
   const items = await CartItems.aggregate([
     { $match: { cartId: cart._id } },
     { $lookup: { from: 'products', localField: 'productId', foreignField: '_id', as: 'product' } },
@@ -235,14 +280,14 @@ app.get('/api/cart', async (req, res) => {
     qty: ci.qty,
     product: { id: ci.product._id, ...Object.fromEntries(Object.entries(ci.product).filter(([k]) => k !== '_id')) }
   }));
-  res.json({ cartId: cart._id, sessionId, items: normalized });
+  res.json({ cartId: cart._id, items: normalized });
 });
 app.post('/api/cart/items', async (req, res) => {
   const { product_id, qty } = req.body || {};
   if (!product_id && product_id !== 0) return res.status(400).json({ error: 'product_id required' });
   const qn = Number(qty);
-  const sessionId = resolveSessionId(req);
-  const cart = await getOrCreateCart({ sessionId });
+  const id = await getOrCreateCartIdentity(req);
+  const cart = await getOrCreateCart(id);
   if (!qn || qn <= 0){
     await CartItems.deleteOne({ cartId: cart._id, productId: product_id });
     const items = await CartItems.find({ cartId: cart._id }).toArray();
@@ -258,7 +303,9 @@ app.post('/api/cart/items', async (req, res) => {
   res.json({ cartId: cart._id, items });
 });
 app.delete('/api/cart/items/:id', async (req, res) => {
-  const r = await CartItems.deleteOne({ _id: req.params.id });
+  const id = await getOrCreateCartIdentity(req);
+  const cart = await getOrCreateCart(id);
+  const r = await CartItems.deleteOne({ _id: req.params.id, cartId: cart._id });
   if (r.deletedCount === 0) return res.status(404).json({ error: 'not found' });
   res.json({ ok: true });
 });
