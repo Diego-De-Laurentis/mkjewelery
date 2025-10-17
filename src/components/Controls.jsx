@@ -1,39 +1,39 @@
 // src/components/Controls.jsx
-import { useEffect, useState } from 'react'
-import { getCategories } from '../utils/api.db'
+import React from 'react'
 
-export default function Controls({ onFilter }) {
-  const [q, setQ] = useState('')
-  const [category, setCategory] = useState('')
-  const [cats, setCats] = useState([])
-
-  useEffect(() => { (async () => setCats((await getCategories()) || []))() }, [])
-  useEffect(() => { onFilter({ q, category }) }, [q, category, onFilter])
-
+export default function Controls({
+  categories = [],
+  category = 'All',
+  setCategory = () => {},
+  query = '',
+  setQuery = () => {},
+}) {
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 pt-4 space-y-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+      {/* Suche: reagiert bei onChange */}
       <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
         placeholder="Search products..."
-        className="w-full border rounded-full px-4 py-2"
+        className="w-full border rounded-full px-4 py-3"
       />
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setCategory('')}
-          className={`px-3 py-1.5 rounded-full border ${category===''?'bg-black text-white':'bg-white'}`}
-        >
-          All
-        </button>
-        {(cats||[]).map(c => (
-          <button
-            key={c.id}
-            onClick={() => setCategory(c.name)}
-            className={`px-3 py-1.5 rounded-full border ${category===c.name?'bg-black text-white':'bg-white'}`}
-          >
-            {c.name}
-          </button>
-        ))}
+
+      {/* Kategorien: alles via onClick */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {['All', ...categories.filter(Boolean).filter((v,i,arr)=>arr.indexOf(v)===i)].map((c) => {
+          const active = String(category).toLowerCase() === String(c).toLowerCase()
+          return (
+            <button
+              key={c}
+              onClick={() => setCategory(c)}
+              className={`px-4 py-1.5 rounded-full border ${
+                active ? 'bg-black text-white' : 'bg-white'
+              }`}
+            >
+              {c}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
