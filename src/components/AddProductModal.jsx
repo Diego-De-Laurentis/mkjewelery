@@ -3,10 +3,19 @@ import { createPortal } from 'react-dom'
 import { useEffect, useState } from 'react'
 import { createProduct, getCategories } from '../utils/api.db'
 
+function fileToDataURL(file){
+  return new Promise((res, rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result)); r.onerror=rej; r.readAsDataURL(file); })
+}
+
 export default function AddProductModal({ open=false, onClose=()=>{}, onCreated=()=>{} }){
   const [cats, setCats] = useState([])
+  const [file, setFile] = useState(null)
+  const [url, setUrl] = useState('')
+  const [preview, setPreview] = useState('')
+
   useEffect(()=>{ if(open){ getCategories().then(setCats) } },[open])
 
+  // Fokus/ESC + Body-Scroll sperren
   useEffect(()=>{
     if (!open) return
     const prev = document.body.style.overflow
@@ -16,42 +25,113 @@ export default function AddProductModal({ open=false, onClose=()=>{}, onCreated=
     return ()=>{ document.body.style.overflow = prev; window.removeEventListener('keydown', onKey) }
   },[open, onClose])
 
+  // Preview bei Datei/URL
+  useEffect(()=>{
+    let revoke
+    if (file){
+      const obj = URL.createObjectURL(file)
+      setPreview(obj)
+      revoke = () => URL.revokeObjectURL(obj)
+    } else if (url.trim()){
+      setPreview(url.trim())
+    } else {
+      setPreview('')
+    }
+    return ()=>{ revoke?.() }
+  },[file, url])
+
   if (!open) return null
 
   async function onSubmit(e){
     e.preventDefault()
-    const p = {
-      sku: e.target.sku.value.trim(),
-      name: e.target.name.value.trim(),
-      image_url: e.target.image_url.value.trim(),
-      category: e.target.category.value.trim(),
-      price_cents: Math.round(Number(e.target.price.value)*100) || 0,
-      description: e.target.description.value.trim()
+    const f = e.currentTarget
+    const sku = f.sku.value.trim()
+    const name = f.name.value.trim()
+    const category = f.category.value.trim()
+    const price_cents = Math.round(Number(f.price.value)*100) || 0
+    const description = f.description.value.trim()
+
+    if (!sku || !name) return
+
+    let image_url = ''
+    if (file){
+      if (file.size > 2*1024*1024) { alert('Max 2MB'); return }
+      try { image_url = await fileToDataURL(file) } catch { alert('Bild konnte nicht gelesen werden'); return }
+    } else if (url.trim()){
+      image_url = url.trim()
     }
-    const r = await createProduct(p)
-    if (r?.id){ onCreated(); onClose() }
+
+    const created = await createProduct({ sku, name, category, price_cents, description, image_url })
+    if (created?.id){ onCreated(); onClose() }
   }
 
-  const ui = (
+  return createPortal(
     <>
       <div className="fixed inset-0 bg-black/50 z-[12000]" onClick={onClose} />
       <div className="fixed inset-0 z-[12010] flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl">
+        <div className="w-full max-w-xl bg-white rounded-2xl p-6 shadow-2xl">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Add Product</h2>
             <button onClick={onClose} className="px-2 py-1 rounded border">Close</button>
           </div>
-          <form onSubmit={onSubmit} className="space-y-3">
-            <input name="sku" placeholder="SKU" required className="w-full border rounded px-3 py-2" />
-            <input name="name" placeholder="Name" required className="w-full border rounded px-3 py-2" />
-            <input name="image_url" placeholder="Image URL" className="w-full border rounded px-3 py-2" />
-            <select name="category" className="w-full border rounded px-3 py-2" defaultValue="">
-              <option value="">No category</option>
-              {(cats||[]).map(c=> <option key={c.id} value={c.name}>{c.name}</option>)}
-            </select>
-            <input name="price" type="number" step="0.01" placeholder="Price €" required className="w-full border rounded px-3 py-2" />
-            <textarea name="description" placeholder="Description" className="w-full border rounded px-3 py-2" />
-            <div className="flex gap-2 justify-end">
+
+          <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm mb-1">SKU</label>
+              <input name="sku" required className="w-full border rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Name</label>
+              <input name="name" required className="w-full border rounded px-3 py-2" />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Category</label>
+              <select name="category" className="w-full border rounded px-3 py-2" defaultValue="">
+                <option value="">No category</option>
+                {(cats||[]).map(c=> <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Price (€)</label>
+              <input name="price" type="number" step="0.01" required className="w-full border rounded px-3 py-2" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm mb-1">Description</label>
+              <textarea name="description" className="w-full border rounded px-3 py-2" />
+            </div>
+
+            {/* Bildwahl: Datei ODER URL */}
+            <div>
+              <label className="block text-sm mb-1">Image from PC</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e)=>{ setFile(e.target.files?.[0] || null) }}
+                className="w-full border rounded px-3 py-2"
+              />
+              <p className="mt-1 text-xs text-gray-500">Max 2MB</p>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Image from URL</label>
+              <input
+                value={url}
+                onChange={(e)=>setUrl(e.target.value)}
+                placeholder="https://…"
+                className="w-full border rounded px-3 py-2"
+              />
+              <p className="mt-1 text-xs text-gray-500">Wenn Datei gewählt ist, hat diese Vorrang.</p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm mb-1">Preview</label>
+              <div className="aspect-[4/3] border rounded-xl overflow-hidden bg-gray-50">
+                {preview ? <img src={preview} alt="preview" className="w-full h-full object-cover" /> : (
+                  <div className="w-full h-full grid place-items-center text-gray-400 text-sm">No image</div>
+                )}
+              </div>
+            </div>
+
+            <div className="md:col-span-2 flex justify-end gap-2">
               <button type="button" onClick={onClose} className="px-3 py-2 rounded border">Cancel</button>
               <button type="submit" className="px-3 py-2 rounded bg-black text-white">Create</button>
             </div>
@@ -59,6 +139,5 @@ export default function AddProductModal({ open=false, onClose=()=>{}, onCreated=
         </div>
       </div>
     </>
-  )
-  return createPortal(ui, document.body)
+  , document.body)
 }
