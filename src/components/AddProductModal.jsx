@@ -1,9 +1,12 @@
 // src/components/AddProductModal.jsx
 import { createPortal } from 'react-dom'
-import { useEffect } from 'react'
-import { createProduct } from '../utils/api.db'
+import { useEffect, useState } from 'react'
+import { createProduct, getCategories } from '../utils/api.db'
 
 export default function AddProductModal({ open=false, onClose=()=>{}, onCreated=()=>{} }){
+  const [cats, setCats] = useState([])
+  useEffect(()=>{ if(open){ getCategories().then(setCats) } },[open])
+
   useEffect(()=>{
     if (!open) return
     const prev = document.body.style.overflow
@@ -42,7 +45,10 @@ export default function AddProductModal({ open=false, onClose=()=>{}, onCreated=
             <input name="sku" placeholder="SKU" required className="w-full border rounded px-3 py-2" />
             <input name="name" placeholder="Name" required className="w-full border rounded px-3 py-2" />
             <input name="image_url" placeholder="Image URL" className="w-full border rounded px-3 py-2" />
-            <input name="category" placeholder="Category (e.g. ring, necklace)" className="w-full border rounded px-3 py-2" />
+            <select name="category" className="w-full border rounded px-3 py-2" defaultValue="">
+              <option value="">No category</option>
+              {(cats||[]).map(c=> <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
             <input name="price" type="number" step="0.01" placeholder="Price €" required className="w-full border rounded px-3 py-2" />
             <textarea name="description" placeholder="Description" className="w-full border rounded px-3 py-2" />
             <div className="flex gap-2 justify-end">
