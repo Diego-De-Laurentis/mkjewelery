@@ -1,20 +1,14 @@
 // src/components/Controls.jsx
-import { useEffect, useState, useCallback } from 'react'
-import { getCategories, getProducts } from '../utils/api.db'
+import { useEffect, useState } from 'react'
+import { getCategories } from '../utils/api.db'
 
-export default function Controls({ onData = () => {} }) {
+export default function Controls({ onFilter = () => {} }) {
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
   const [cats, setCats] = useState([])
 
   useEffect(() => { (async () => setCats((await getCategories()) || []))() }, [])
-
-  const fetchList = useCallback(async (qq = q, cat = category) => {
-    onData((await getProducts({ q: qq, category: cat })) || [])
-  }, [q, category, onData])
-
-  // Suche reagiert auf jedes onChange
-  useEffect(() => { fetchList(q, category) }, [q, category, fetchList])
+  useEffect(() => { onFilter({ q, category }) }, [q, category, onFilter])
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 pt-4 space-y-4">
@@ -24,7 +18,6 @@ export default function Controls({ onData = () => {} }) {
         placeholder="Search products..."
         className="w-full border rounded-full px-4 py-2"
       />
-
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setCategory('')}
