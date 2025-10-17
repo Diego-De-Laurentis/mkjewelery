@@ -1,9 +1,12 @@
 // src/components/EditProductModal.jsx
 import { createPortal } from 'react-dom'
-import { useEffect } from 'react'
-import { updateProduct, deleteProduct } from '../utils/api.db'
+import { useEffect, useState } from 'react'
+import { updateProduct, deleteProduct, getCategories } from '../utils/api.db'
 
 export default function EditProductModal({ product, open=false, onClose=()=>{}, onSaved=()=>{} }){
+  const [cats, setCats] = useState([])
+  useEffect(()=>{ if(open){ getCategories().then(setCats) } },[open])
+
   useEffect(()=>{
     if (!open) return
     const prev = document.body.style.overflow
@@ -45,7 +48,10 @@ export default function EditProductModal({ product, open=false, onClose=()=>{}, 
           <form onSubmit={onSubmit} className="space-y-3">
             <input name="name" defaultValue={product.name} className="w-full border rounded px-3 py-2" required />
             <input name="image_url" defaultValue={product.image_url} className="w-full border rounded px-3 py-2" />
-            <input name="category" defaultValue={product.category||''} className="w-full border rounded px-3 py-2" />
+            <select name="category" defaultValue={product.category||''} className="w-full border rounded px-3 py-2">
+              <option value="">No category</option>
+              {(cats||[]).map(c=> <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
             <input name="price" type="number" step="0.01" defaultValue={(product.price_cents||0)/100} className="w-full border rounded px-3 py-2" />
             <textarea name="description" defaultValue={product.description} className="w-full border rounded px-3 py-2" />
             <div className="flex justify-between items-center">
