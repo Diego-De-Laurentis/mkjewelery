@@ -13,6 +13,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 
+// ---- MongoDB ----
 const MONGODB_URI = process.env.MONGODB_URI;
 const DB_NAME = process.env.MONGODB_DB || 'mkjewelery';
 if (!MONGODB_URI) { console.error('Missing MONGODB_URI'); process.exit(1); }
@@ -21,6 +22,7 @@ await client.connect();
 const db = client.db(DB_NAME);
 const Users = db.collection('users');
 const Products = db.collection('products');
+const Categories = db.collection('categories');
 const Carts = db.collection('carts');
 const CartItems = db.collection('cart_items');
 
@@ -28,6 +30,7 @@ await Users.createIndex({ email: 1 }, { unique: true });
 await Products.createIndex({ sku: 1 }, { unique: true });
 await Products.createIndex({ name: 'text', description: 'text', category: 'text' });
 await Products.createIndex({ category: 1 });
+await Categories.createIndex({ slug: 1 }, { unique: true });
 await Carts.createIndex({ userId: 1 }, { unique: true, sparse: true });
 await Carts.createIndex({ sessionId: 1 }, { unique: true, sparse: true });
 await CartItems.createIndex({ cartId: 1, productId: 1 }, { unique: true });
@@ -36,18 +39,32 @@ const now = () => Math.floor(Date.now() / 1000);
 const newId = (p) => p + '_' + crypto.randomBytes(8).toString('hex');
 const hash = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
 
-async function seedProductsIfEmpty(){
-  const count = await Products.estimatedDocumentCount();
-  if (count > 0) return;
-  const ts = now();
-  await Products.insertMany([
-    { _id: 'p_1', sku: 'RING-001', category: 'ring', name: 'Gold Ring', description: '18k gold ring', price_cents: 12999, image_url: '/images/ring1.jpg', created_at: ts, updated_at: ts },
-    { _id: 'p_2', sku: 'NECK-002', category: 'necklace', name: 'Silver Necklace', description: 'Sterling silver', price_cents: 8999, image_url: '/images/necklace1.jpg', created_at: ts, updated_at: ts },
-    { _id: 'p_3', sku: 'EAR-003', category: 'earrings', name: 'Diamond Earrings', description: 'Lab-grown', price_cents: 159999, image_url: '/images/earrings1.jpg', created_at: ts, updated_at: ts },
-  ]);
-}
-await seedProductsIfEmpty();
+const toSlug = (s) =>
+  String(s||'').trim().toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu,'-')
+    .replace(/^-+|-+$/g,'');
 
+// ---- Seed ----
+async function seedIfEmpty(){
+  if (await Categories.estimatedDocumentCount() === 0){
+    await Categories.insertMany([
+      { _id:'cat_ring', name:'ring', slug:'ring', created_at: now() },
+      { _id:'cat_necklace', name:'necklace', slug:'necklace', created_at: now() },
+      { _id:'cat_earrings', name:'earrings', slug:'earrings', created_at: now() },
+    ]);
+  }
+  if (await Products.estimatedDocumentCount() === 0){
+    const ts = now();
+    await Products.insertMany([
+      { _id:'p_1', sku:'RING-001', category:'ring', name:'Gold Ring', description:'18k gold ring', price_cents:12999, image_url:'/images/ring1.jpg', created_at:ts, updated_at:ts },
+      { _id:'p_2', sku:'NECK-002', category:'necklace', name:'Silver Necklace', description:'Sterling silver', price_cents:8999, image_url:'/images/necklace1.jpg', created_at:ts, updated_at:ts },
+      { _id:'p_3', sku:'EAR-003', category:'earrings', name:'Diamond Earrings', description:'Lab-grown', price_cents:159999, image_url:'/images/earrings1.jpg', created_at:ts, updated_at:ts },
+    ]);
+  }
+}
+await seedIfEmpty();
+
+// ---- Helpers ----
 function resolveSessionId(req){
   const fromCookie = req.cookies?.sid;
   const fromHeader = req.header('X-Session-Id');
@@ -57,27 +74,28 @@ async function getOrCreateCart({ userId, sessionId }){
   let cart;
   if (userId){
     cart = await Carts.findOne({ userId });
-    if (!cart){
-      cart = { _id: newId('c'), userId, created_at: now(), updated_at: now() };
-      await Carts.insertOne(cart);
-    }
+    if (!cart){ cart = { _id: newId('c'), userId, created_at: now(), updated_at: now() }; await Carts.insertOne(cart); }
   } else {
     cart = await Carts.findOne({ sessionId });
-    if (!cart){
-      cart = { _id: newId('c'), sessionId, created_at: now(), updated_at: now() };
-      await Carts.insertOne(cart);
-    }
+    if (!cart){ cart = { _id: newId('c'), sessionId, created_at: now(), updated_at: now() }; await Carts.insertOne(cart); }
   }
   return cart;
 }
+function setAuthCookie(res, user){
+  const payload = Buffer.from(JSON.stringify({ id:user._id, email:user.email, role:user.role })).toString('base64');
+  const opts = { httpOnly: true, sameSite: 'lax', maxAge: 1000*60*60*24*30 };
+  res.cookie('auth', payload, opts);
+}
 
-// Auth
+// ---- Auth ----
 app.post('/api/register', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
   try {
     const doc = { _id: newId('u'), email: String(email).toLowerCase(), password_hash: hash(password), role: 'user', created_at: now() };
     await Users.insertOne(doc);
+    setAuthCookie(res, doc);
+    res.cookie('sid', newId('s'), { httpOnly: true, sameSite:'lax', maxAge: 1000*60*60*24*30 });
     res.json({ id: doc._id, email: doc.email, role: doc.role });
   } catch (e) {
     if (String(e).includes('E11000')) return res.status(409).json({ error: 'email exists' });
@@ -88,24 +106,32 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body || {};
   const u = await Users.findOne({ email: String(email||'').toLowerCase() });
   if (!u || u.password_hash !== hash(password)) return res.status(401).json({ error: 'invalid credentials' });
-  const sid = newId('s');
-  res.cookie('sid', sid, { httpOnly: true, sameSite: 'lax', maxAge: 1000*60*60*24*30 });
+  res.cookie('sid', newId('s'), { httpOnly: true, sameSite: 'lax', maxAge: 1000*60*60*24*30 });
+  setAuthCookie(res, u);
   res.json({ id: u._id, email: u.email, role: u.role });
 });
 app.post('/api/logout', async (req, res) => {
   const sid = req.cookies?.sid;
   if (sid){
     const cart = await Carts.findOne({ sessionId: sid });
-    if (cart){
-      await CartItems.deleteMany({ cartId: cart._id });
-      await Carts.deleteOne({ _id: cart._id });
-    }
+    if (cart){ await CartItems.deleteMany({ cartId: cart._id }); await Carts.deleteOne({ _id: cart._id }); }
   }
   res.clearCookie('sid');
+  res.clearCookie('auth');
   res.json({ ok: true });
 });
+app.get('/api/me', async (req, res) => {
+  try{
+    const raw = req.cookies?.auth;
+    if (!raw) return res.json(null);
+    const parsed = JSON.parse(Buffer.from(String(raw), 'base64').toString('utf8'));
+    const u = await Users.findOne({ _id: parsed.id, email: parsed.email });
+    if (!u) return res.json(null);
+    res.json({ id: u._id, email: u.email, role: u.role });
+  }catch{ res.json(null); }
+});
 
-// Admin: Users (UI-seitig nur für Admin sichtbar)
+// ---- Admin: Users ----
 app.get('/api/admin/users', async (_req, res) => {
   const users = await Users.find({}, { projection: { password_hash: 0 } }).sort({ created_at: -1 }).toArray();
   res.json(users.map(u => ({ id: u._id, email: u.email, role: u.role, created_at: u.created_at })));
@@ -131,13 +157,30 @@ app.delete('/api/admin/users/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Categories
+// ---- Categories ----
 app.get('/api/categories', async (_req, res) => {
-  const cats = await Products.distinct('category', { category: { $ne: '' } });
-  res.json(cats.filter(Boolean).sort());
+  const rows = await Categories.find().sort({ name: 1 }).toArray();
+  res.json(rows.map(({ _id, name, slug }) => ({ id:_id, name, slug })));
+});
+app.post('/api/admin/categories', async (req, res) => {
+  const { name } = req.body || {};
+  if (!name) return res.status(400).json({ error:'name required' });
+  const slug = toSlug(name);
+  try{
+    const doc = { _id: newId('cat'), name: name.trim(), slug, created_at: now() };
+    await Categories.insertOne(doc);
+    res.json({ id: doc._id, name: doc.name, slug: doc.slug });
+  }catch(e){
+    if (String(e).includes('E11000')) return res.status(409).json({ error:'category exists' });
+    res.status(500).json({ error:'server error' });
+  }
+});
+app.delete('/api/admin/categories/:id', async (req, res) => {
+  await Categories.deleteOne({ _id: req.params.id });
+  res.json({ ok:true });
 });
 
-// Products with search/category
+// ---- Products (search + category filter) ----
 app.get('/api/products', async (req, res) => {
   const { q, category } = req.query || {};
   const filter = {};
@@ -178,7 +221,7 @@ app.delete('/api/products/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Cart
+// ---- Cart ----
 app.get('/api/cart', async (req, res) => {
   const sessionId = resolveSessionId(req);
   const cart = await getOrCreateCart({ sessionId });
@@ -220,7 +263,7 @@ app.delete('/api/cart/items/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Static
+// ---- Static ----
 app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 
